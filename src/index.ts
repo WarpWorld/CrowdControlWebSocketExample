@@ -3,9 +3,19 @@ import fs from 'fs'
 import jwt from 'jsonwebtoken'
 import { v4 as uuidv4 } from 'uuid'
 
+// Miscellaneous state
+
+const wssUrl = 'wss://pubsub.crowdcontrol.live/'
+const openApiUrl = 'https://openapi.crowdcontrol.live'
+const game = {
+  name: 'Super Example Game 65',
+  id: 'Minecraft',
+}
+let gameSessionID: PublicGameSessionStartEvent['payload']['gameSessionID']
+
 // Load credentials
 
-let creds: Credentials | undefined
+let creds: Credentials
 
 function setCreds(token: string): void {
   const payload = jwt.decode(token)
@@ -21,9 +31,9 @@ if (fs.existsSync('creds.jwt')) {
 
 console.log("Connecting...")
 
-const ws = new WebSocket('wss://pubsub.crowdcontrol.live/', {
+const ws = new WebSocket(wssUrl, {
   headers: {
-    'user-agent': 'Super Example Game 65',
+    'user-agent': game.name,
   },
 })
 
@@ -52,15 +62,29 @@ function getPublic(name: PublicEffectRequestEvent['payload']['effect']['name']):
 
 // Define function to run on connection & auth
 
-function onAuthenticated() {
+async function onAuthenticated() {
   if (!creds) return
+  const { token, payload } = creds
 
   console.log("Subscribing...")
 
   sendRequest({
     action: 'subscribe',
     data: {
-      topics: [`pub/${creds.payload.ccUID}`],
+      topics: [`pub/${payload.ccUID}`],
+    },
+  })
+
+  console.log("Starting session...")
+  await fetch(`${openApiUrl}/game-session/start`, {
+    method: 'POST',
+    body: JSON.stringify({
+      gamePackID: game.id,
+    }),
+    headers: {
+      "Authorization": `cc-auth-token ${token}`,
+      "Content-Type": "application/json",
+      "User-Agent": game.name,
     },
   })
 }
@@ -69,15 +93,15 @@ function onAuthenticated() {
 
 ws.on('error', console.error)
 
-ws.on('open', () => {
+ws.on('open', async () => {
   if (creds) {
-    onAuthenticated()
+    await onAuthenticated()
   } else {
     sendRequest({ action: "whoami" })
   }
 })
 
-ws.on('message', (data) => {
+ws.on('message', async (data) => {
   const event = asEvent(data)
   if (!event) return
 
@@ -90,6 +114,10 @@ ws.on('message', (data) => {
     setCreds(event.payload.token)
     onAuthenticated()
   }
+  else if (event.type === "game-session-start") {
+    gameSessionID = event.payload.gameSessionID
+    console.log(`Started session ${gameSessionID}`)
+  }
 
   // authentication-requiring events
   if (!creds) return
@@ -98,7 +126,7 @@ ws.on('message', (data) => {
   if (event.type === "subscription-result") {
     // We are now successfully listening for events!
     // Let's note it in the logs
-    console.log(`Connected to WebSocket as ${payload.name}`)
+    console.log(`Subscribed to WebSocket as ${payload.name}`)
   }
   else if (event.domain === 'pub' && event.type === 'effect-request') {
     console.log(`Accepting request for effect ${getPublic(event.payload.effect.name)} by ${event.payload.requester?.name ?? '[unknown user]'}`)
@@ -122,3 +150,27 @@ ws.on('message', (data) => {
     })
   }
 })
+
+// Handle shutdown
+async function handleShutdown(): Promise<void> {
+  console.log('Shutting down...')
+  if (creds && gameSessionID) {
+    console.log('Stopping session...')
+    const { token } = creds
+    await fetch(`${openApiUrl}/game-session/stop`, {
+      method: 'POST',
+      body: JSON.stringify({
+        gameSessionID,
+      }),
+      headers: {
+        "Authorization": `cc-auth-token ${token}`,
+        "Content-Type": "application/json",
+        "User-Agent": game.name,
+      },
+    })
+  }
+  process.exit(0)
+}
+
+process.on('SIGTERM', handleShutdown);
+process.on('SIGINT', handleShutdown);

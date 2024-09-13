@@ -50,6 +50,14 @@ interface PublicGameSessionStartEvent {
   }
 }
 
+interface PublicGameSessionStopEvent {
+  domain: 'pub'
+  type: 'game-session-stop'
+  payload: {
+    gameSessionID: 'string'
+  }
+}
+
 interface PublicEffectRequestEvent {
   domain: 'pub'
   type: 'effect-request'
@@ -239,6 +247,7 @@ type CCEvent =
   | DirectLoginSuccessEvent
   | DirectSubscriptionResultEvent
   | PublicGameSessionStartEvent
+  | PublicGameSessionStopEvent
   | PublicEffectRequestEvent
 
 ////////////////////
