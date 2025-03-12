@@ -1,4 +1,4 @@
-interface Credentials {
+export interface Credentials {
   token: string
   payload: {
     type: string
@@ -17,23 +17,35 @@ interface Credentials {
 ////// Events //////
 ////////////////////
 
-interface DirectWhoAmIEvent {
+export type SortableString = string | {
+  public: string
+  sort?: string
+}
+
+export interface DirectApplicationAuthCodeEvent {
   domain: 'direct'
-  type: 'whoami'
+  type: 'application-auth-code'
   payload: {
-    connectionID: string
+    code: string
+    url: string
+    qrCode?: string
   }
 }
 
-interface DirectLoginSuccessEvent {
+export interface DirectApplicationAuthCodeRedeemedEvent {
   domain: 'direct'
-  type: 'login-success'
+  type: 'application-auth-code-redeemed'
+}
+
+export interface DirectApplicationAuthCodeErrorEvent {
+  domain: 'direct'
+  type: 'application-auth-code-error'
   payload: {
-    token: string
+    message: string
   }
 }
 
-interface DirectSubscriptionResultEvent {
+export interface DirectSubscriptionResultEvent {
   domain: 'direct'
   type: 'subscription-result'
   payload: {
@@ -42,7 +54,7 @@ interface DirectSubscriptionResultEvent {
   }
 }
 
-interface PublicGameSessionStartEvent {
+export interface PublicGameSessionStartEvent {
   domain: 'pub'
   type: 'game-session-start'
   payload: {
@@ -50,7 +62,7 @@ interface PublicGameSessionStartEvent {
   }
 }
 
-interface PublicGameSessionStopEvent {
+export interface PublicGameSessionStopEvent {
   domain: 'pub'
   type: 'game-session-stop'
   payload: {
@@ -58,7 +70,7 @@ interface PublicGameSessionStopEvent {
   }
 }
 
-interface PublicEffectRequestEvent {
+export interface PublicEffectRequestEvent {
   domain: 'pub'
   type: 'effect-request'
   payload: {
@@ -66,12 +78,7 @@ interface PublicEffectRequestEvent {
       // GameSessionPublicEffectPayloadEffectData
       effectID: string // EffectID
       type: 'game' | 'overlay' | 'sfx'
-      name:
-        | string
-        | {
-            public: string
-            sort?: string
-          }
+      name: SortableString
       image: string
       note?: string
       description?: string
@@ -242,9 +249,10 @@ interface PublicEffectRequestEvent {
   }
 }
 
-type CCEvent =
-  | DirectWhoAmIEvent
-  | DirectLoginSuccessEvent
+export type CCEvent =
+  | DirectApplicationAuthCodeEvent
+  | DirectApplicationAuthCodeRedeemedEvent
+  | DirectApplicationAuthCodeErrorEvent
   | DirectSubscriptionResultEvent
   | PublicGameSessionStartEvent
   | PublicGameSessionStopEvent
@@ -270,61 +278,67 @@ interface BaseEffectResponseArg extends BaseArg {
   stamp: number
 }
 
-interface InstantEffectResponseArg extends BaseEffectResponseArg {
+export interface InstantEffectResponseArg extends BaseEffectResponseArg {
   status: 'success' | 'failTemporary' | 'failPermanent' | 'timedEnd'
 }
 
-interface TimedEffectResponseArg extends BaseEffectResponseArg {
+export interface TimedEffectResponseArg extends BaseEffectResponseArg {
   status: 'timedBegin' | 'timedPause' | 'timedResume'
   timeRemaining: number
 }
 
-type EffectResponseArg =
+export type EffectResponseArg =
   | InstantEffectResponseArg
   | TimedEffectResponseArg
 
-interface EffectResponseCall extends BaseCall {
+  export interface EffectResponseCall extends BaseCall {
   method: 'effectResponse'
   args: [EffectResponseArg]
 }
 
-interface EffectReportArg extends BaseArg {
+export interface EffectReportArg extends BaseArg {
   identifierType?: 'effect' | 'category' | 'group'
   ids: string[]
   status: 'menuVisible' | 'menuHidden' | 'menuUnavailable' | 'menuAvailable'
 }
 
-interface EffectReportCall extends BaseCall {
+export interface EffectReportCall extends BaseCall {
   method: 'effectReport'
   args: EffectReportArg[]
 }
 
-type RPCCall = EffectResponseCall | EffectReportCall
+export type RPCCall = EffectResponseCall | EffectReportCall
 
 ////////////////////
 ///// Requests /////
 ////////////////////
 
-interface WhoAmIRequest {
-  action: 'whoami'
+export interface GenerateAuthCodeRequest {
+  action: 'generate-auth-code'
+  data: {
+    appID: string
+    scopes?: string[]
+    packs?: string[]
+    qrCode?: boolean
+  }
 }
 
-interface SubscribeRequest {
+export interface SubscribeRequest {
   action: 'subscribe'
   data: {
     topics: string[]
   }
 }
 
-interface RPCRequest {
+export interface RPCRequest {
   action: 'rpc'
   data: {
-    token: string,
-    call: RPCCall,
+    token: string
+    call: RPCCall
   }
 }
 
-type CCRequest =
-  | WhoAmIRequest
+export type CCRequest =
+  | GenerateAuthCodeRequest
   | SubscribeRequest
   | RPCRequest
