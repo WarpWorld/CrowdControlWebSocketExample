@@ -35,6 +35,9 @@ export interface DirectApplicationAuthCodeEvent {
 export interface DirectApplicationAuthCodeRedeemedEvent {
   domain: 'direct'
   type: 'application-auth-code-redeemed'
+  payload: {
+    code: string
+  }
 }
 
 export interface DirectApplicationAuthCodeErrorEvent {
